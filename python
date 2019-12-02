@@ -1,0 +1,352 @@
+# COMP3311 19T3 Assignment 3
+
+import sys
+import cs3311
+
+conn = cs3311.connect()
+
+cur = conn.cursor()
+
+query = """
+CREATE or REPLACE VIEW q1 AS 
+Select s.title as title, s.code as code, c.quota as quota, count(ce.person_id)
+From Courses c
+JOIN Subjects s ON (s.id=c.subject_id)
+JOIN Course_enrolments ce ON (ce.course_id=c.id)
+Where c.term_id = 5199
+AND c.quota > 50
+GROUP BY s.title, s.code, c.quota;
+
+
+Select  q1.code, q1.quota, q1.count
+From q1
+Where q1.count > q1.quota
+Order by q1.code asc;
+"""
+
+cur.execute(query)  
+for tup in cur.fetchall():
+    code,quota, count = tup
+    print("{} {:.0%}".format(code, count/quota))
+
+cur.close()
+conn.close()
+
+# COMP3311 19T3 Assignment 3
+
+import sys
+import cs3311
+conn = cs3311.connect()
+
+if len(sys.argv) != 2:
+    count=2
+else:
+    count=sys.argv[1]
+
+cur = conn.cursor()
+
+cur.execute(
+    "Create or replace view q2 as\
+    select LEFT(a.code, 4) as name, RIGHT(b.code,4) as trim\
+    from subjects a\
+    Left join subjects b on a.id=b.id;\
+    \
+    Create or replace view q2_2 as\
+    Select trim, count(trim)\
+    From q2\
+    Group by  trim;\
+    \
+    Select a.trim, string_agg(a.name, ' ' order by name)\
+    From q2 a \
+    Join q2_2 b on a.trim=b.trim\
+    Where b.count={}\
+    Group by a.trim".format(count)
+)
+
+tuples=cur.fetchall()
+nameDict={}
+
+for trim, agg in tuples:
+    if trim not in nameDict:
+        nameDict[trim]=[]
+    nameDict[trim].append(agg)
+        
+for key in sorted (nameDict):
+    for value in (nameDict[key]): 
+        print(key+": "+value)
+
+cur.close()
+conn.close()
+
+# COMP3311 19T3 Assignment 3
+
+import sys
+import cs3311
+conn = cs3311.connect()
+
+if len(sys.argv) != 2:
+    name="ENGG"
+else:
+    name = sys.argv[1]
+cap_name=name.upper()
+
+curr=conn.cursor()
+
+curr.execute(
+    "SELECT s.code, b.name FROM Courses c\
+    JOIN Terms t ON (t.id=c.term_id)\
+    JOIN Subjects s ON (s.id=c.subject_id)\
+    JOIN Classes cl ON (cl.course_id=c.id)\
+    JOIN Meetings m ON (m.class_id=cl.id)\
+    JOIN Rooms r ON (r.id=m.room_id)\
+    JOIN Buildings b ON (b.id=r.within)\
+    WHERE s.code LIKE '{}%'\
+    AND t.id=5196 \
+    GROUP BY s.code, b.name\
+    ORDER BY b.name asc".format(cap_name)
+)
+
+tuples=curr.fetchall()
+nameDict={}
+for code, name in tuples:
+    if name not in nameDict:
+        nameDict[name]=[]
+    nameDict[name].append(code)
+    
+for key in sorted (nameDict):
+    print(key)
+    for value in sorted (nameDict[key]): 
+        print(" "+value)
+    
+curr.close();
+conn.close()
+
+# COMP3311 19T3 Assignment 3
+
+import sys
+import cs3311
+conn = cs3311.connect()
+
+if len(sys.argv) != 2:
+    name="ENGG"
+else:
+    name = sys.argv[1]
+cap_name=name.upper()
+
+curr = conn.cursor()
+
+curr.execute(
+"   Select s.code as code, count(ce.person_id), t.name\
+    From Courses c\
+    JOIN Subjects s ON (s.id=c.subject_id)\
+    JOIN Course_enrolments ce ON (ce.course_id=c.id)\
+    JOIN Terms t ON (t.id=c.term_id)\
+    And s.code LIKE '{}%'\
+    GROUP BY s.code, t.name\
+    ORDER BY t.name, s.code".format(cap_name)
+)
+tuples=curr.fetchall()
+termDict={}
+
+for code, count, term in tuples:
+    if term not in termDict:
+        termDict[term]=[]
+        print(term)
+    print(" "+code+"({})".format(count))
+
+curr.close()
+conn.close()
+
+# COMP3311 19T3 Assignment 3
+
+import sys
+import cs3311
+conn = cs3311.connect()
+
+curr = conn.cursor()
+
+if len(sys.argv) != 2:
+    name="COMP1521"
+else:
+    name = sys.argv[1]
+    
+curr.execute(
+"Create or replace view q5 as \
+Select cl.id, ct.name, cl.quota as class_quota, cl.tag, count(ce.person_id) as class_count \
+From Courses c \
+Join Subjects s On (s.id=c.subject_id) \
+Join Terms t On (t.id=c.term_id) \
+Join Classes cl On (c.id=cl.course_id) \
+Join ClassTypes ct On (ct.id=cl.type_id) \
+Join Class_Enrolments ce on (ce.class_id=cl.id) \
+Where s.code='{}' \
+And t.id=5199 \
+GROUP BY cl.id, ct.name, cl.quota, cl.tag \
+ORDER BY ct.name, cl.tag; \
+\
+Create or replace view q5_2 as \
+Select name, tag, class_quota, class_count, class_count * 1.0/ class_quota as class_percentage \
+from q5; \
+\
+Select name, tag, class_percentage \
+From q5_2 \
+Where class_percentage < 0.5 \
+Order by name, tag, class_percentage".format(name)
+)
+
+tuples=curr.fetchall()
+for name, tag, percent in tuples:
+    new_tag=tag.strip()
+    print(name+" "+new_tag+" is {:.0%} full" .format(percent))
+
+curr.close()
+conn.close()
+
+# COMP3311 19T3 Assignment 3
+
+import sys
+import cs3311
+conn = cs3311.connect()
+
+def update_time(meeting_id, meeting_times):
+    binary=""
+    if "N" in meeting_times:
+        return("00000000000")
+    elif "<" in meeting_times:
+        return("00000000000")
+    split=meeting_times.split(",")
+    countList=[0]*11
+    
+    for j in split:
+        ck=j.split("-")
+        if len(ck)==2:
+            for l in range(int(ck[0])-1, int(ck[1])):
+                countList[l]=1
+        elif len(ck)==1:
+            countList[int(ck[0])-1]=1
+    for k in range(0,11):
+        binary=binary+str(countList[k])     
+    return(binary)
+    
+
+curr = conn.cursor()
+
+curr.execute("select id, weeks from meetings")
+#UPDATE meetings SET weeks_binary = '00100000000' WHERE id = 7234592;
+
+tuples=curr.fetchall()
+
+
+for m_id, time in tuples:
+    new=update_time(m_id,time)
+    try:
+        curr.execute("UPDATE meetings SET weeks_binary = '{}' WHERE id = {}".format(new,m_id))
+    except Exception as e:
+        print("Error updating meetings table")
+        print(e)
+
+conn.commit()
+conn.close()
+
+# COMP3311 19T3 Assignment 3
+#5193=19T1, 5196=19T2, 5199=19T3
+
+import sys
+import cs3311
+conn = cs3311.connect()
+
+curr2 = conn.cursor()
+curr2.execute("select count(distinct code) from rooms where code ILIKE 'K-%'")
+
+for row in curr2.fetchall():
+    total_rooms=row[0]
+curr2.close();
+
+curr = conn.cursor()
+
+if len(sys.argv) != 2:
+    termID=5193
+else:
+    name = sys.argv[1]
+    if name == '19T1':
+        termID=5193
+    elif name == '19T2':
+        termID=5196
+    elif name == '19T3':
+        termID=5199
+    #print(termID)
+
+        
+    
+query = """
+    CREATE OR REPLACE VIEW q7_1 as
+    SELECT distinct r.code, r.id, m.day, m.start_time, m.end_time,  SUBSTRING(m.weeks_binary, 0, 11) as new_binary, weeks_binary from rooms r
+    Join meetings m on (m.room_id=r.id) 
+    Join Classes cl On (m.class_id=cl.id)
+    Join Courses c On  (c.id=cl.course_id)
+    Join Terms t on (t.id = c.term_id)
+    where r.code ILIKE 'K-%'
+    And c.term_id={}
+    Group by r.code, r.id, t.id, m.day, m.start_time, m.end_time, m.weeks_binary
+    Order by r.id, r.code;
+    
+    create or replace view q7_2 as
+    select code, day, start_time, end_time, LENGTH(replace(new_binary, '0', '')) as length, new_binary,
+    CASE WHEN (start_time % 100 = 30) THEN (start_time+20)
+    ELSE start_time
+    END AS new_start,
+    CASE WHEN (end_time % 100 = 30) THEN (end_time+20)
+    ELSE end_time
+    END AS new_end
+    From q7_1;
+    
+    select code, day, new_start, new_end, new_end-new_start as duration, length, new_binary
+    from q7_2;  
+
+"""
+
+total_duration = {}
+prev_day = ""
+prev_class = ""
+i = 0
+
+curr.execute(query.format(termID))
+for row in curr.fetchall():
+    code, day, start, end, duration, length, binary = row
+    weeks_list= list(binary)
+    weeks_list = [ int(x) for x in weeks_list]
+    if code not in total_duration:
+        total_duration[code] = 0
+    total_duration[code] += length*duration
+    if i == 0 or prev_day != day or prev_code != code:
+        i = 1
+        prev_end = weeks_list.copy()
+        prev_end = list(map(lambda x: end * x, prev_end))
+        prev_day = day
+        prev_code = code
+        continue
+    for j in range(0,10):
+        if weeks_list[j] == 1 and start < prev_end[j]:
+            if end < prev_end[j]:
+                diff = end - start
+                total_duration[code] -= diff
+            else:
+                diff = prev_end[j] - start
+                total_duration[code] -= diff  
+        if weeks_list[j] == 1 and end > prev_end[j]:
+            prev_end[j] = end     
+
+under = 0
+total = 0
+for key in sorted (total_duration):
+    if total_duration[key] < 20000:
+        under += 1
+        
+    total += 1
+
+print("{:.1%}".format((under+total_rooms-total)/total_rooms))
+
+
+conn.commit()
+curr.close()
+conn.close()
